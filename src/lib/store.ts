@@ -1,26 +1,26 @@
 import { ProductivityEntry } from './types';
+import { db } from './firebase'; // تأكد أن اسم الملف عندك هو firebase
+import { collection, addDoc, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
 
-const STORAGE_KEY = 'productivity_entries';
+const COLLECTION_NAME = 'productivity_entries';
 
-export const getEntries = (): ProductivityEntry[] => {
-  if (typeof window === 'undefined') return [];
-  const stored = localStorage.getItem(STORAGE_KEY);
-  return stored ? JSON.parse(stored) : [];
+export const getEntries = async (): Promise<ProductivityEntry[]> => {
+    const q = query(collection(db, COLLECTION_NAME), orderBy('date', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+    })) as ProductivityEntry[];
 };
 
-export const saveEntry = (entry: ProductivityEntry) => {
-  const entries = getEntries();
-  const index = entries.findIndex(e => e.id === entry.id);
-  if (index >= 0) {
-    entries[index] = entry;
-  } else {
-    entries.push(entry);
-  }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+export const saveEntry = async (entry: ProductivityEntry) => {
+    // إضافة بيانات جديدة لـ Firebase
+    await addDoc(collection(db, COLLECTION_NAME), {
+        ...entry,
+        timestamp: new Date() // عشان الترتيب الزمني
+    });
 };
 
-export const deleteEntry = (id: string) => {
-  const entries = getEntries();
-  const filtered = entries.filter(e => e.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+export const deleteEntry = async (id: string) => {
+    await deleteDoc(doc(db, COLLECTION_NAME, id));
 };
