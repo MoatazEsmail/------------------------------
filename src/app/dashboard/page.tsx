@@ -25,8 +25,21 @@ export default function DashboardHome() {
 
   useEffect(() => {
     const stored = localStorage.getItem("current_user");
-    if (stored) setCurrentUser(JSON.parse(stored));
-    setEntries(getEntries());
+    if (stored) {
+      setCurrentUser(JSON.parse(stored));
+    }
+
+    // جلب البيانات من فايربيز
+    const loadData = async () => {
+      try {
+        const data = await getEntries();
+        setEntries(data);
+      } catch (error) {
+        console.error("Error loading data:", error);
+      }
+    };
+
+    loadData();
   }, []);
 
   if (!currentUser) return null;
