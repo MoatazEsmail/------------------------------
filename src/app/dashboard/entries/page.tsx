@@ -48,25 +48,46 @@ const isSupervisor = currentUser.role === 'supervisor';
 
 // تظهر كافة السجلات للجميع (العامة) مرتبة بالأحدث
 const allEntries = [...entries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  const handleSubmit = (e: React.FormEvent) => {
-  const handleSubmit = async (e: React.FormEvent) => {
-e.preventDefault();
+    if (isSupervisor && !formData.technicianId) {
+      toast({ title: "خطأ", description: "يرجى اختيار الفني أولاً", variant: "destructive" });
+      return;
+    }
 
-if (isSupervisor && !formData.technicianId) {
-toast({ title: "خطأ", description: "يرجى اختيار الفني أولاً", variant: "destructive" });
-return;
-}
+    const newEntry: ProductivityEntry = {
+      id: editingId || Math.random().toString(36).substr(2, 9),
+      technicianId: formData.technicianId || currentUser.id,
+      ...formData
+    };
 
-const newEntry: ProductivityEntry = {
-id: editingId || Math.random().toString(36).substr(2, 9),
-technicianId: formData.technicianId || currentUser.id,
-...formData
-};
+    try {
+      await saveEntry(newEntry);
+      const updatedEntries = await getEntries();
+      setEntries(updatedEntries);
+      
+      setEditingId(null);
+      setFormData({
+        technicianId: isSupervisor ? "" : currentUser.id,
+        date: new Date().toISOString().split('T')[0],
+        gasStoveConversions: 0,
+        waterHeaterConversions: 0,
+        householdApplianceReplacements: 0,
+        commercialApplianceReplacements: 0,
+        commercialApplianceConversions: 0,
+        chimneyInstallations: 0
+      });
 
-    saveEntry(newEntry);
-    setEntries(getEntries());
-    await saveEntry(newEntry);
+      toast({
+        title: "تم الحفظ",
+        description: "تم تسجيل الإنتاجية بنجاح",
+      });
+    } catch (error) {
+      console.error("Error saving entry:", error);
+      toast({ title: "خطأ", description: "حدث خطأ أثناء الحفظ", variant: "destructive" });
+    }
+  };
     setEntries(await getEntries());
 setEditingId(null);
 setFormData({
