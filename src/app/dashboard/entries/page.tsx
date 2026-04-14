@@ -49,7 +49,8 @@ export default function EntriesPage() {
   // تظهر كافة السجلات للجميع (العامة) مرتبة بالأحدث
   const allEntries = [...entries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const const handleSubmit = async (e: React.FormEvent) => { 
+  e.preventDefault(); 
     e.preventDefault();
     
     if (isSupervisor && !formData.technicianId) {
@@ -62,7 +63,6 @@ export default function EntriesPage() {
       technicianId: formData.technicianId || currentUser.id,
       ...formData
     };
-
     await saveEntry(newEntry);
     setEntries(await getEntries());
     setEditingId(null);
