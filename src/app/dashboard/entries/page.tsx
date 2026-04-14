@@ -17,6 +17,7 @@ export default function EntriesPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [entries, setEntries] = useState<ProductivityEntry[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -32,7 +33,20 @@ export default function EntriesPage() {
   useEffect(() => {
     const stored = localStorage.getItem("current_user");
     if (stored) setCurrentUser(JSON.parse(stored));
-    setEntries(getEntries());
+    
+    // جلب البيانات من فايربيز عند فتح الصفحة
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        const data = await getEntries();
+        setEntries(data || []);
+      } catch (error) {
+        console.error("Error loading data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
   }, []);
 
   if (!currentUser) return null;
@@ -41,7 +55,7 @@ export default function EntriesPage() {
     .filter(e => currentUser.role === 'supervisor' ? true : e.technicianId === currentUser.id)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const newEntry: ProductivityEntry = {
@@ -50,23 +64,36 @@ export default function EntriesPage() {
       ...formData
     };
 
-    saveEntry(newEntry);
-    setEntries(getEntries());
-    setEditingId(null);
-    setFormData({
-      date: new Date().toISOString().split('T')[0],
-      gasStoveConversions: 0,
-      waterHeaterConversions: 0,
-      householdApplianceReplacements: 0,
-      commercialApplianceReplacements: 0,
-      commercialApplianceConversions: 0,
-      chimneyInstallations: 0
-    });
-    
-    toast({
-      title: "تم الحفظ",
-      description: "تم تسجيل الإنتاجية بنجاح",
-    });
+    try {
+      // الانتظار حتى يتم الحفظ في فايربيز
+      await saveEntry(newEntry);
+      
+      // تحديث الجدول بالبيانات الجديدة من السحاب
+      const updatedEntries = await getEntries();
+      setEntries(updatedEntries);
+      
+      setEditingId(null);
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        gasStoveConversions: 0,
+        waterHeaterConversions: 0,
+        householdApplianceReplacements: 0,
+        commercialApplianceReplacements: 0,
+        commercialApplianceConversions: 0,
+        chimneyInstallations: 0
+      });
+      
+      toast({
+        title: "تم الحفظ",
+        description: "تم تسجيل الإنتاجية بنجاح بنظام السحاب",
+      });
+    } catch (error) {
+      toast({
+        title: "خطأ في الحفظ",
+        description: "تأكد من اتصال الإنترنت وحاول مرة أخرى",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleEdit = (entry: ProductivityEntry) => {
@@ -83,9 +110,12 @@ export default function EntriesPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDelete = (id: string) => {
-    deleteEntry(id);
-    setEntries(getEntries());
+  const handleDelete = async (id: string) => {
+    if (confirm("هل أنت متأكد من حذف هذا السجل؟")) {
+      await deleteEntry(id);
+      setEntries(await getEntries());
+      toast({ title: "تم الحذف", description: "تم حذف السجل من قاعدة البيانات" });
+    }
   };
 
   return (
@@ -96,7 +126,7 @@ export default function EntriesPage() {
 
       <Card className="shadow-md border-primary/20">
         <CardHeader className="bg-primary/5">
-          <CardTitle className="text-lg">إضافة سجل جديد</CardTitle>
+          <CardTitle className="text-lg">{editingId ? "تعديل السجل" : "إضافة سجل جديد"}</CardTitle>
           <CardDescription>أدخل تفاصيل الأجهزة التي تم العمل عليها اليوم</CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
@@ -158,7 +188,10 @@ export default function EntriesPage() {
       </Card>
 
       <div className="space-y-4">
-        <h3 className="text-xl font-bold font-headline">سجلاتك السابقة</h3>
+        <h3 className="text-xl font-bold font-headline flex items-center gap-2">
+          سجلاتك السابقة
+          {isLoading && <span className="text-xs font-normal animate-pulse text-muted-foreground">(جاري المزامنة...)</span>}
+        </h3>
         <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
           <Table>
             <TableHeader>
@@ -174,7 +207,7 @@ export default function EntriesPage() {
               {userEntries.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    لا توجد سجلات بعد
+                    {isLoading ? "جاري تحميل البيانات..." : "لا توجد سجلات بعد"}
                   </TableCell>
                 </TableRow>
               ) : (
