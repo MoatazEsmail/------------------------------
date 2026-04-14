@@ -43,7 +43,7 @@ export default function DashboardHome() {
     const normalizedActual = techEntries.reduce((acc, curr) => 
       acc + calculateNormalizedProductivity(curr, tech.type!), 0);
     return { technician: tech, normalizedActual };
-  });
+});
 
   const totalNormalized = technicianStats.reduce((acc, curr) => acc + curr.normalizedActual, 0);
   const totalTarget = TECHNICIANS.reduce((acc, curr) => acc + (curr.target || 0), 0);
