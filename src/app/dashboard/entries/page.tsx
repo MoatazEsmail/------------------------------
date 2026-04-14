@@ -37,8 +37,11 @@ const stored = localStorage.getItem("current_user");
 if (stored) {
 const user = JSON.parse(stored);
 setCurrentUser(user);
-setFormData(prev => ({ ...prev, technicianId: user.role === 'technician' ? user.id : "" }));
-}
+const loadData = async () => {
+      const data = await getEntries();
+      setEntries(data);
+    };
+    loadData();}
 setEntries(getEntries());
 }, []);
 
@@ -49,6 +52,7 @@ const isSupervisor = currentUser.role === 'supervisor';
 // تظهر كافة السجلات للجميع (العامة) مرتبة بالأحدث
 const allEntries = [...entries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 const handleSubmit = async (e: React.FormEvent) => {
+   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (isSupervisor && !formData.technicianId) {
@@ -62,10 +66,28 @@ const handleSubmit = async (e: React.FormEvent) => {
       ...formData
     };
 
-    try {
-      await saveEntry(newEntry);
-      const updatedEntries = await getEntries();
-      setEntries(updatedEntries);
+    // الحفظ في فايربيز وانتظار الرد
+    await saveEntry(newEntry);
+    const updatedEntries = await getEntries();
+    setEntries(updatedEntries);
+    
+    setEditingId(null);
+    setFormData({
+      technicianId: isSupervisor ? "" : currentUser.id,
+      date: new Date().toISOString().split('T')[0],
+      gasStoveConversions: 0,
+      waterHeaterConversions: 0,
+      householdApplianceReplacements: 0,
+      commercialApplianceReplacements: 0,
+      commercialApplianceConversions: 0,
+      chimneyInstallations: 0
+    });
+
+    toast({
+      title: "تم الحفظ",
+      description: "تم تسجيل الإنتاجية بنجاح",
+    });
+  };
       
       setEditingId(null);
       setFormData({
