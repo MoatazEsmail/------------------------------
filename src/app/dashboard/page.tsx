@@ -8,10 +8,11 @@ import { RankingTable } from "@/components/ranking-table";
 import { getEntries } from "@/lib/store";
 import { calculateNormalizedProductivity, filterEntriesByMonth } from "@/lib/conversions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileDown, TrendingUp, Users, Flame, Info } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { FileDown, TrendingUp, Users, Flame, Info, History, ArrowLeftRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +33,11 @@ export default function DashboardHome() {
 
   const currentMonthEntries = filterEntriesByMonth(entries, selectedYear, selectedMonth);
   
+  // الحصول على آخر 5 عمليات مسجلة للظهور في "النشاط العام"
+  const recentActivities = [...entries]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
+
   const technicianStats = TECHNICIANS.map(tech => {
     const techEntries = currentMonthEntries.filter(e => e.technicianId === tech.id);
     const normalizedActual = techEntries.reduce((acc, curr) => 
@@ -66,6 +72,9 @@ export default function DashboardHome() {
     document.body.removeChild(link);
   };
 
+  const getTechName = (id: string) => TECHNICIANS.find(t => t.id === id)?.name || "غير معروف";
+  const getTechType = (id: string) => TECHNICIANS.find(t => t.id === id)?.type || "";
+
   const months = [
     "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
     "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
@@ -73,6 +82,7 @@ export default function DashboardHome() {
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700 rtl" dir="rtl">
+      {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b pb-8">
         <div className="flex items-center gap-5">
           <div className="p-4 bg-primary rounded-2xl text-white shadow-xl shadow-primary/20">
@@ -150,6 +160,7 @@ export default function DashboardHome() {
         </Card>
       </div>
 
+      {/* Main Grid: Technicians & Activity Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         <div className="lg:col-span-8 space-y-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
@@ -166,6 +177,7 @@ export default function DashboardHome() {
               </span>
             </div>
           </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {technicianStats.map(stat => (
               <TechnicianCard 
@@ -176,12 +188,72 @@ export default function DashboardHome() {
               />
             ))}
           </div>
+
+          {/* Recent Public Activity Feed */}
+          <Card className="border-2 shadow-xl overflow-hidden">
+            <CardHeader className="bg-secondary/50 border-b">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <History className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg font-black">آخر النشاطات العامة</CardTitle>
+                    <CardDescription>آخر العمليات المسجلة من قبل الفريق في المنطقة</CardDescription>
+                  </div>
+                </div>
+                <Button variant="ghost" onClick={() => router.push('/dashboard/entries')} className="text-primary font-bold">
+                  عرض الكل
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="font-bold">الفني</TableHead>
+                    <TableHead className="font-bold">التاريخ</TableHead>
+                    <TableHead className="font-bold">الإنتاجية</TableHead>
+                    <TableHead className="text-left font-bold">القسم</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recentActivities.map((activity) => {
+                    const techType = getTechType(activity.technicianId);
+                    const isChimney = techType === 'فني مدخنة';
+                    return (
+                      <TableRow key={activity.id} className="hover:bg-muted/30">
+                        <TableCell className="font-black text-primary">{getTechName(activity.technicianId)}</TableCell>
+                        <TableCell className="text-xs font-bold">{activity.date}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                             <ArrowLeftRight className="h-3 w-3 text-muted-foreground" />
+                             <span className="font-bold">{activity.gasStoveConversions + activity.waterHeaterConversions + activity.chimneyInstallations} عمل</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-left">
+                           <Badge variant="outline" className={isChimney ? "border-blue-500 text-blue-600" : "border-emerald-500 text-emerald-600"}>
+                              {techType}
+                           </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {recentActivities.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">لا توجد نشاطات حديثة</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </div>
         
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-4 space-y-8">
           <RankingTable data={technicianStats} />
           
-          <Card className="mt-8 bg-primary/5 border-primary/20 border-dashed border-2">
+          <Card className="bg-primary/5 border-primary/20 border-dashed border-2">
             <CardContent className="pt-6 flex gap-4">
               <Info className="h-6 w-6 text-primary shrink-0" />
               <div className="space-y-1">
