@@ -4,39 +4,43 @@
 
 @layer base {
   :root {
-    --background: 200 31% 94%;
-    --foreground: 201 28% 15%;
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 201 28% 15%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 201 28% 15%;
-    --primary: 201 28% 38%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 200 31% 90%;
-    --secondary-foreground: 201 28% 25%;
-    --muted: 200 15% 90%;
-    --muted-foreground: 201 15% 45%;
-    --accent: 180 48% 53%;
-    --accent-foreground: 180 48% 5%;
-    --destructive: 0 67% 48%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 201 15% 85%;
-    --input: 201 15% 85%;
-    --ring: 201 28% 38%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 199 89% 48%;
+    --accent-foreground: 222 47% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221 83% 53%;
     --radius: 0.75rem;
 
-    --status-success: 120 50% 39%;
-    --status-error: 0 67% 48%;
+    /* Department Colors */
+    --chimney-primary: 221 83% 53%; /* Blue */
+    --conversion-primary: 160 84% 39%; /* Emerald Green */
+    
+    --status-success: 142 76% 36%;
+    --status-error: 0 84% 60%;
   }
 
   .dark {
-    --background: 201 28% 10%;
-    --foreground: 200 31% 94%;
-    --card: 201 28% 12%;
-    --card-foreground: 200 31% 94%;
-    --primary: 201 28% 45%;
-    --primary-foreground: 0 0% 100%;
-    --border: 201 28% 20%;
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222 47% 11.2%;
+    --border: 217.2 32.6% 17.5%;
   }
 }
 
@@ -48,9 +52,18 @@
     @apply bg-background text-foreground font-body;
   }
   h1, h2, h3, h4, h5, h6 {
-    @apply font-headline;
+    @apply font-headline tracking-tight;
   }
 }
+
+.dept-chimney { color: hsl(var(--chimney-primary)); }
+.dept-conversion { color: hsl(var(--conversion-primary)); }
+
+.bg-dept-chimney { background-color: hsl(var(--chimney-primary)); }
+.bg-dept-conversion { background-color: hsl(var(--conversion-primary)); }
+
+.border-dept-chimney { border-color: hsl(var(--chimney-primary)); }
+.border-dept-conversion { border-color: hsl(var(--conversion-primary)); }
 
 .status-green { color: hsl(var(--status-success)); }
 .status-red { color: hsl(var(--status-error)); }

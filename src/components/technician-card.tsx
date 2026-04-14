@@ -1,11 +1,10 @@
-
 "use client";
 
-import { User, TechnicianType } from "@/lib/types";
+import { User } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, User as UserIcon, CheckCircle, AlertCircle } from "lucide-react";
+import { ChevronLeft, User as UserIcon, CheckCircle, AlertCircle, HardHat, Drill } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TechnicianCardProps {
@@ -18,54 +17,85 @@ export function TechnicianCard({ technician, normalizedActual, onClick }: Techni
   const target = technician.target || 0;
   const percentage = Math.min(100, Math.round((normalizedActual / target) * 100)) || 0;
   const isAchieved = normalizedActual >= target;
-  const unitLabel = technician.type === 'فني مدخنة' ? 'مدخنة' : 'جهاز';
   
-  // Custom colors based on type
   const isChimney = technician.type === 'فني مدخنة';
-  const typeColorClass = isChimney ? "border-r-blue-500 hover:border-r-blue-600" : "border-r-teal-500 hover:border-r-teal-600";
-  const iconBgClass = isChimney ? "bg-blue-100 text-blue-600" : "bg-teal-100 text-teal-600";
-  const progressColor = isAchieved ? "bg-status-green" : "bg-status-red";
+  
+  // Professional Styling based on Department
+  const deptConfig = isChimney ? {
+    colorClass: "text-blue-600",
+    bgClass: "bg-blue-50",
+    borderClass: "border-blue-500",
+    hoverBorder: "hover:border-blue-700",
+    icon: <HardHat className="h-5 w-5" />,
+    label: "قسم المداخن",
+    unit: "مدخنة"
+  } : {
+    colorClass: "text-emerald-600",
+    bgClass: "bg-emerald-50",
+    borderClass: "border-emerald-500",
+    hoverBorder: "hover:border-emerald-700",
+    icon: <Drill className="h-5 w-5" />,
+    label: "قسم التحويلات",
+    unit: "جهاز"
+  };
 
   return (
     <Card 
       className={cn(
-        "cursor-pointer hover:shadow-lg transition-all duration-300 group border-r-4",
-        typeColorClass
+        "cursor-pointer transition-all duration-300 group border-l-4 shadow-sm",
+        deptConfig.borderClass,
+        deptConfig.hoverBorder,
+        "hover:shadow-md hover:-translate-y-1 active:scale-[0.98]"
       )}
       onClick={() => onClick(technician.id)}
     >
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={cn("p-2 rounded-full transition-colors", iconBgClass)}>
-              <UserIcon className="h-5 w-5" />
+            <div className={cn("p-2.5 rounded-xl transition-colors shadow-sm", deptConfig.bgClass, deptConfig.colorClass)}>
+              {deptConfig.icon}
             </div>
             <div>
-              <CardTitle className="text-lg font-bold">{technician.name}</CardTitle>
-              <p className={cn("text-xs font-bold", isChimney ? "text-blue-600" : "text-teal-600")}>{technician.type}</p>
+              <CardTitle className="text-lg font-bold group-hover:text-primary transition-colors">{technician.name}</CardTitle>
+              <p className={cn("text-xs font-bold uppercase tracking-wider", deptConfig.colorClass)}>{deptConfig.label}</p>
             </div>
           </div>
-          <Badge variant={isAchieved ? "default" : "destructive"} className={cn("px-2 py-1", isAchieved ? "bg-status-green" : "bg-status-red")}>
-            {isAchieved ? <CheckCircle className="h-3 w-3 mr-1 inline" /> : <AlertCircle className="h-3 w-3 mr-1 inline" />}
-            {isAchieved ? "حقق الهدف" : "أقل من الهدف"}
+          <Badge 
+            variant={isAchieved ? "default" : "destructive"} 
+            className={cn(
+              "px-3 py-1 font-bold", 
+              isAchieved ? "bg-status-green hover:bg-status-green" : "bg-status-red hover:bg-status-red"
+            )}
+          >
+            {isAchieved ? <CheckCircle className="h-3.5 w-3.5 mr-1.5 inline" /> : <AlertCircle className="h-3.5 w-3.5 mr-1.5 inline" />}
+            {isAchieved ? "محقق" : "تحت المستهدف"}
           </Badge>
         </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="flex justify-between text-sm font-medium">
-            <span>الإنتاجية: <span className="text-primary font-bold">{normalizedActual.toFixed(1)}</span> / {target} {unitLabel}</span>
-            <span>{percentage}%</span>
+          <div className="flex justify-between items-end text-sm">
+            <div className="space-y-0.5">
+              <span className="text-muted-foreground text-xs block">الإنتاجية الموحدة</span>
+              <span className="text-lg font-black text-foreground">
+                {normalizedActual.toFixed(1)} <span className="text-xs font-normal text-muted-foreground">/ {target} {deptConfig.unit}</span>
+              </span>
+            </div>
+            <div className={cn("text-xl font-black", deptConfig.colorClass)}>
+              {percentage}%
+            </div>
           </div>
-          <Progress value={percentage} className={cn("h-2")} />
-          <style jsx global>{`
-            .group .bg-primary {
-              background-color: ${isAchieved ? 'hsl(var(--status-success))' : 'hsl(var(--status-error))'} !important;
-            }
-          `}</style>
+          
+          <div className="relative h-2.5 w-full bg-secondary rounded-full overflow-hidden">
+            <div 
+              className={cn("h-full transition-all duration-1000", isAchieved ? "bg-status-green" : "bg-status-red")}
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+
           <div className="flex justify-end pt-2">
-            <span className="text-xs text-muted-foreground flex items-center group-hover:text-primary">
-              عرض التفاصيل <ChevronLeft className="h-3 w-3 mr-1" />
+            <span className="text-xs font-bold text-muted-foreground flex items-center group-hover:text-primary transition-colors">
+              عرض التفاصيل والتحليلات <ChevronLeft className="h-3 w-3 mr-1" />
             </span>
           </div>
         </div>
