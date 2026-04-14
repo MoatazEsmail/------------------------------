@@ -1,3 +1,4 @@
+
 export type UserRole = 'supervisor' | 'technician';
 export type TechnicianType = 'فني مدخنة' | 'فني تحويلات';
 

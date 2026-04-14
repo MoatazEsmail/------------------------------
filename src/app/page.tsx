@@ -8,13 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { TECHNICIANS, SUPERVISOR, User } from "@/lib/types";
-import { Lock, User as UserIcon, ShieldCheck, Flame } from "lucide-react";
+import { Lock, User as UserIcon, Flame, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -27,45 +29,67 @@ export default function LoginPage() {
 
   if (!isMounted) return null;
 
+  const normalizeArabic = (text: string) => {
+    return text
+      .trim()
+      .replace(/[أإآ]/g, "ا")
+      .replace(/ى/g, "ي")
+      .replace(/\s+/g, " ");
+  };
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
 
     const allUsers: User[] = [SUPERVISOR, ...TECHNICIANS];
-    const user = allUsers.find((u) => u.name === username && u.password === password);
+    
+    // Normalize input and stored names for a more flexible match
+    const normalizedInputName = normalizeArabic(username);
+    
+    const user = allUsers.find((u) => {
+      const normalizedStoreName = normalizeArabic(u.name);
+      return normalizedStoreName === normalizedInputName && u.password === password.trim();
+    });
 
     if (user) {
       localStorage.setItem("current_user", JSON.stringify(user));
-      router.push("/dashboard");
+      // Use window.location for a hard redirect to refresh the layout state
+      window.location.href = "/dashboard";
     } else {
-      setError("خطأ في اسم المستخدم أو كلمة المرور");
+      setError("خطأ في اسم المستخدم أو كلمة المرور. يرجى التأكد من كتابة الاسم كما هو مسجل.");
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background rtl" dir="rtl">
-      <Card className="w-full max-w-md shadow-xl border-t-4 border-primary">
-        <CardHeader className="text-center space-y-2">
-          <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-2">
-            <Flame className="w-8 h-8 text-primary" />
+    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 rtl" dir="rtl">
+      <Card className="w-full max-w-md shadow-2xl border-t-8 border-primary overflow-hidden">
+        <CardHeader className="text-center space-y-4 pb-8 bg-white">
+          <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center shadow-inner">
+            <Flame className="w-10 h-10 text-primary animate-pulse" />
           </div>
-          <CardTitle className="text-3xl font-bold font-headline text-primary">تاون جاس</CardTitle>
           <div className="space-y-1">
-            <p className="text-lg font-bold">منطقة مصر الجديدة</p>
-            <p className="text-sm text-muted-foreground">إدارة العمليات</p>
+            <CardTitle className="text-4xl font-black font-headline text-primary tracking-tighter">تاون جاس</CardTitle>
+            <div className="flex flex-col items-center">
+              <span className="text-xl font-bold text-foreground">منطقة مصر الجديدة</span>
+              <span className="text-sm font-bold text-muted-foreground bg-secondary/50 px-3 py-0.5 rounded-full mt-1">إدارة العمليات</span>
+            </div>
           </div>
-          <CardDescription className="pt-2 border-t">نظام تتبع الإنتاجية اليومية للتحويلات والمداخن</CardDescription>
+          <CardDescription className="text-sm font-medium border-b pb-4">
+            نظام تتبع الإنتاجية اليومية للتحويلات والمداخن
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+        <CardContent className="pt-6 bg-white">
+          <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="username">اسم المستخدم</Label>
+              <Label htmlFor="username" className="text-sm font-bold pr-1">اسم المستخدم</Label>
               <div className="relative">
-                <UserIcon className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+                <UserIcon className="absolute right-3 top-3 h-5 w-5 text-muted-foreground/60" />
                 <Input
                   id="username"
-                  className="pr-10"
-                  placeholder="أدخل اسمك"
+                  className="pr-10 h-12 border-2 focus-visible:ring-primary"
+                  placeholder="أدخل اسمك بالكامل"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
@@ -73,13 +97,13 @@ export default function LoginPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">كلمة المرور</Label>
+              <Label htmlFor="password" className="text-sm font-bold pr-1">كلمة المرور</Label>
               <div className="relative">
-                <Lock className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute right-3 top-3 h-5 w-5 text-muted-foreground/60" />
                 <Input
                   id="password"
                   type="password"
-                  className="pr-10"
+                  className="pr-10 h-12 border-2 focus-visible:ring-primary"
                   placeholder="كلمة المرور"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -87,10 +111,27 @@ export default function LoginPage() {
                 />
               </div>
             </div>
-            {error && <p className="text-destructive text-sm font-medium">{error}</p>}
-            <Button type="submit" className="w-full h-12 text-lg font-medium">
-              تسجيل الدخول
+            
+            {error && (
+              <Alert variant="destructive" className="py-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs font-bold">
+                  {error}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <Button 
+              type="submit" 
+              className="w-full h-14 text-xl font-black shadow-lg shadow-primary/20 transition-all active:scale-95"
+              disabled={isLoading}
+            >
+              {isLoading ? "جاري التحقق..." : "تسجيل الدخول"}
             </Button>
+            
+            <div className="pt-4 text-center">
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">جميع الحقوق محفوظة لشركة تاون جاس &copy; ٢٠٢٤</p>
+            </div>
           </form>
         </CardContent>
       </Card>
