@@ -1,3 +1,4 @@
+
 "use client";
 
 import { User, TechnicianType } from "@/lib/types";
@@ -18,21 +19,30 @@ export function TechnicianCard({ technician, normalizedActual, onClick }: Techni
   const percentage = Math.min(100, Math.round((normalizedActual / target) * 100)) || 0;
   const isAchieved = normalizedActual >= target;
   const unitLabel = technician.type === 'فني مدخنة' ? 'مدخنة' : 'جهاز';
+  
+  // Custom colors based on type
+  const isChimney = technician.type === 'فني مدخنة';
+  const typeColorClass = isChimney ? "border-r-blue-500 hover:border-r-blue-600" : "border-r-teal-500 hover:border-r-teal-600";
+  const iconBgClass = isChimney ? "bg-blue-100 text-blue-600" : "bg-teal-100 text-teal-600";
+  const progressColor = isAchieved ? "bg-status-green" : "bg-status-red";
 
   return (
     <Card 
-      className="cursor-pointer hover:shadow-lg transition-all duration-300 group border-r-4 border-r-transparent hover:border-r-primary"
+      className={cn(
+        "cursor-pointer hover:shadow-lg transition-all duration-300 group border-r-4",
+        typeColorClass
+      )}
       onClick={() => onClick(technician.id)}
     >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-full bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+            <div className={cn("p-2 rounded-full transition-colors", iconBgClass)}>
               <UserIcon className="h-5 w-5" />
             </div>
             <div>
               <CardTitle className="text-lg font-bold">{technician.name}</CardTitle>
-              <p className="text-xs text-muted-foreground">{technician.type}</p>
+              <p className={cn("text-xs font-bold", isChimney ? "text-blue-600" : "text-teal-600")}>{technician.type}</p>
             </div>
           </div>
           <Badge variant={isAchieved ? "default" : "destructive"} className={cn("px-2 py-1", isAchieved ? "bg-status-green" : "bg-status-red")}>
@@ -47,7 +57,12 @@ export function TechnicianCard({ technician, normalizedActual, onClick }: Techni
             <span>الإنتاجية: <span className="text-primary font-bold">{normalizedActual.toFixed(1)}</span> / {target} {unitLabel}</span>
             <span>{percentage}%</span>
           </div>
-          <Progress value={percentage} className={cn("h-2", isAchieved ? "[&>div]:bg-status-green" : "[&>div]:bg-status-red")} />
+          <Progress value={percentage} className={cn("h-2")} />
+          <style jsx global>{`
+            .group .bg-primary {
+              background-color: ${isAchieved ? 'hsl(var(--status-success))' : 'hsl(var(--status-error))'} !important;
+            }
+          `}</style>
           <div className="flex justify-end pt-2">
             <span className="text-xs text-muted-foreground flex items-center group-hover:text-primary">
               عرض التفاصيل <ChevronLeft className="h-3 w-3 mr-1" />

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -9,7 +10,7 @@ import { calculateNormalizedProductivity, filterEntriesByMonth } from "@/lib/con
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileDown, LayoutDashboard, TrendingUp, Users } from "lucide-react";
+import { FileDown, LayoutDashboard, TrendingUp, Users, Flame } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function DashboardHome() {
@@ -70,18 +71,20 @@ export default function DashboardHome() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-bold font-headline flex items-center gap-3">
-            <LayoutDashboard className="h-8 w-8 text-primary" />
-            لوحة التحكم
-          </h2>
-          <p className="text-muted-foreground mt-1">نظرة عامة على إنتاجية القسم للفنيين</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-primary rounded-xl text-white">
+            <Flame className="h-8 w-8" />
+          </div>
+          <div>
+            <h2 className="text-3xl font-bold font-headline text-primary">تاون جاس</h2>
+            <p className="text-lg font-semibold">منطقة مصر الجديدة - إدارة العمليات</p>
+          </div>
         </div>
         
         <div className="flex items-center gap-3">
           <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
-            <SelectTrigger className="w-40 bg-card">
+            <SelectTrigger className="w-40 bg-card border-primary">
               <SelectValue placeholder="اختر الشهر" />
             </SelectTrigger>
             <SelectContent>
@@ -93,7 +96,7 @@ export default function DashboardHome() {
           
           <Button onClick={handleExportCSV} variant="outline" className="gap-2 border-primary text-primary hover:bg-primary hover:text-white">
             <FileDown className="h-4 w-4" />
-            تصدير Excel
+            تصدير تقرير
           </Button>
         </div>
       </div>
@@ -143,7 +146,13 @@ export default function DashboardHome() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <h3 className="text-xl font-bold font-headline border-b pb-2">نظرة تفصيلية على الفنيين</h3>
+          <div className="flex items-center justify-between border-b pb-2">
+            <h3 className="text-xl font-bold font-headline">نظرة تفصيلية على الفنيين</h3>
+            <div className="flex gap-4 text-xs font-medium">
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-blue-500"></span> قسم المداخن</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-teal-500"></span> قسم التحويلات</span>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {technicianStats.map(stat => (
               <TechnicianCard 

@@ -1,28 +1,33 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { TECHNICIANS, User, ProductivityEntry } from "@/lib/types";
-import { getEntries } from "@/lib/store";
+import { getEntries, deleteEntry } from "@/lib/store";
 import { calculateNormalizedProductivity, filterEntriesByMonth } from "@/lib/conversions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sparkles, ArrowRight, CheckCircle, BrainCircuit, Target, ListChecks } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sparkles, ArrowRight, CheckCircle, BrainCircuit, Target, ListChecks, Trash2, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { generateTechnicianPerformanceSummary, GenerateTechnicianPerformanceSummaryOutput } from "@/ai/flows/generate-technician-performance-summary";
+import { useToast } from "@/hooks/use-toast";
 
 export default function TechnicianDetailsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { toast } = useToast();
   
   const id = params.id as string;
   const month = parseInt(searchParams.get("month") || new Date().getMonth().toString());
   const year = parseInt(searchParams.get("year") || new Date().getFullYear().toString());
 
   const [tech, setTech] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [entries, setEntries] = useState<ProductivityEntry[]>([]);
   const [aiSummary, setAiSummary] = useState<GenerateTechnicianPerformanceSummaryOutput | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
@@ -30,6 +35,10 @@ export default function TechnicianDetailsPage() {
   useEffect(() => {
     const technician = TECHNICIANS.find(t => t.id === id);
     if (technician) setTech(technician);
+    
+    const stored = localStorage.getItem("current_user");
+    if (stored) setCurrentUser(JSON.parse(stored));
+    
     setEntries(getEntries());
   }, [id]);
 
@@ -41,11 +50,16 @@ export default function TechnicianDetailsPage() {
 
   if (!tech) return null;
 
+  const isSupervisor = currentUser?.role === 'supervisor';
   const currentMonthEntries = filterEntriesByMonth(entries, year, month).filter(e => e.technicianId === tech.id);
   const normalizedActual = currentMonthEntries.reduce((acc, curr) => acc + calculateNormalizedProductivity(curr, tech.type!), 0);
   const target = tech.target || 1;
   const percentage = Math.min(100, Math.round((normalizedActual / target) * 100));
   const isAchieved = normalizedActual >= target;
+
+  const isChimney = tech.type === 'فني مدخنة';
+  const colorClass = isChimney ? "text-blue-600" : "text-teal-600";
+  const borderClass = isChimney ? "border-blue-500" : "border-teal-500";
 
   const rawBreakdown = currentMonthEntries.reduce((acc, curr) => ({
     gasStoveConversions: acc.gasStoveConversions + curr.gasStoveConversions,
@@ -54,7 +68,7 @@ export default function TechnicianDetailsPage() {
     commercialApplianceReplacements: acc.commercialApplianceReplacements + curr.commercialApplianceReplacements,
     commercialApplianceConversions: acc.commercialApplianceConversions + curr.commercialApplianceConversions,
     chimneyInstallations: acc.chimneyInstallations + curr.chimneyInstallations,
-    convertedAppliancesFromChimneyWork: 0 // logic simplified
+    convertedAppliancesFromChimneyWork: 0
   }), {
     gasStoveConversions: 0,
     waterHeaterConversions: 0,
@@ -86,6 +100,14 @@ export default function TechnicianDetailsPage() {
     }
   };
 
+  const handleDeleteEntry = (entryId: string) => {
+    if (confirm("هل أنت متأكد من حذف هذا السجل؟")) {
+      deleteEntry(entryId);
+      setEntries(getEntries());
+      toast({ title: "تم الحذف", description: "تم حذف السجل بنجاح" });
+    }
+  };
+
   const months = [
     "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
     "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
@@ -93,24 +115,26 @@ export default function TechnicianDetailsPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
         <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-secondary">
+          <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-secondary transition-colors">
             <ArrowRight className="h-6 w-6" />
           </button>
           <div>
             <h2 className="text-3xl font-bold font-headline">{tech.name}</h2>
-            <p className="text-muted-foreground">{tech.type} - شهر {months[month]} {year}</p>
+            <p className={cn("font-bold", colorClass)}>{tech.type} - شهر {months[month]} {year}</p>
           </div>
         </div>
-        <Badge className={isAchieved ? "bg-status-green" : "bg-status-red"}>
-          {isAchieved ? "محقق للهدف الشهري" : "تحت المستهدف"}
-        </Badge>
+        <div className="flex items-center gap-2">
+            <Badge className={isAchieved ? "bg-status-green" : "bg-status-red"}>
+            {isAchieved ? "محقق للهدف الشهري" : "تحت المستهدف"}
+            </Badge>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-6">
-          <Card className="border-t-4 border-primary shadow-md">
+          <Card className={cn("border-t-4 shadow-md", borderClass)}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Target className="h-5 w-5 text-primary" />
@@ -192,9 +216,11 @@ export default function TechnicianDetailsPage() {
         <div className="lg:col-span-2 space-y-6">
           <Card className="shadow-sm">
             <CardHeader className="bg-primary/5">
-              <CardTitle className="flex items-center gap-2">
-                <ListChecks className="h-5 w-5 text-primary" />
-                سجل الإنتاجية اليومي
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ListChecks className="h-5 w-5 text-primary" />
+                  سجل الإنتاجية اليومي
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -203,10 +229,11 @@ export default function TechnicianDetailsPage() {
                   <TableRow>
                     <TableHead>التاريخ</TableHead>
                     <TableHead>بوتجاز/سخان</TableHead>
-                    <TableHead>منزلي (استبدال)</TableHead>
+                    <TableHead>منزلي</TableHead>
                     <TableHead>تجاري</TableHead>
                     <TableHead>مداخن</TableHead>
-                    <TableHead className="text-left font-bold">الناتج الموحد</TableHead>
+                    <TableHead className="text-right">الناتج الموحد</TableHead>
+                    {isSupervisor && <TableHead className="text-left">إجراءات</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -217,14 +244,26 @@ export default function TechnicianDetailsPage() {
                       <TableCell>{entry.householdApplianceReplacements}</TableCell>
                       <TableCell>{entry.commercialApplianceReplacements + entry.commercialApplianceConversions}</TableCell>
                       <TableCell>{entry.chimneyInstallations}</TableCell>
-                      <TableCell className="text-left font-bold text-primary">
+                      <TableCell className="text-right font-bold text-primary">
                         {calculateNormalizedProductivity(entry, tech.type!).toFixed(2)}
                       </TableCell>
+                      {isSupervisor && (
+                        <TableCell className="text-left">
+                          <div className="flex gap-2 justify-end">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => router.push('/dashboard/entries')}>
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteEntry(entry.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                   {currentMonthEntries.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                      <TableCell colSpan={isSupervisor ? 7 : 6} className="text-center py-12 text-muted-foreground">
                         لا توجد بيانات مسجلة لهذا الشهر
                       </TableCell>
                     </TableRow>

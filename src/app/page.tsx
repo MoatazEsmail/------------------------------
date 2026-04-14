@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -7,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { TECHNICIANS, SUPERVISOR, User } from "@/lib/types";
-import { Lock, User as UserIcon, ShieldCheck } from "lucide-react";
+import { Lock, User as UserIcon, ShieldCheck, Flame } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -46,10 +47,14 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-xl border-t-4 border-primary">
         <CardHeader className="text-center space-y-2">
           <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-2">
-            <ShieldCheck className="w-8 h-8 text-primary" />
+            <Flame className="w-8 h-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold font-headline">انتاجية قسم التحويلات والمداخن</CardTitle>
-          <CardDescription>نظام تتبع الإنتاجية اليومية للفنيين</CardDescription>
+          <CardTitle className="text-3xl font-bold font-headline text-primary">تاون جاس</CardTitle>
+          <div className="space-y-1">
+            <p className="text-lg font-bold">منطقة مصر الجديدة</p>
+            <p className="text-sm text-muted-foreground">إدارة العمليات</p>
+          </div>
+          <CardDescription className="pt-2 border-t">نظام تتبع الإنتاجية اليومية للتحويلات والمداخن</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">

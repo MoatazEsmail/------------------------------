@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,9 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Edit2, Calendar as CalendarIcon, Check } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Trash2, Edit2, Calendar as CalendarIcon, Check, User as UserIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { v4 as uuidv4 } from 'uuid';
 
 export default function EntriesPage() {
   const { toast } = useToast();
@@ -20,6 +21,7 @@ export default function EntriesPage() {
   
   // Form State
   const [formData, setFormData] = useState({
+    technicianId: "",
     date: new Date().toISOString().split('T')[0],
     gasStoveConversions: 0,
     waterHeaterConversions: 0,
@@ -31,22 +33,33 @@ export default function EntriesPage() {
 
   useEffect(() => {
     const stored = localStorage.getItem("current_user");
-    if (stored) setCurrentUser(JSON.parse(stored));
+    if (stored) {
+      const user = JSON.parse(stored);
+      setCurrentUser(user);
+      setFormData(prev => ({ ...prev, technicianId: user.role === 'technician' ? user.id : "" }));
+    }
     setEntries(getEntries());
   }, []);
 
   if (!currentUser) return null;
 
+  const isSupervisor = currentUser.role === 'supervisor';
+
   const userEntries = entries
-    .filter(e => currentUser.role === 'supervisor' ? true : e.technicianId === currentUser.id)
+    .filter(e => isSupervisor ? true : e.technicianId === currentUser.id)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (isSupervisor && !formData.technicianId) {
+      toast({ title: "خطأ", description: "يرجى اختيار الفني أولاً", variant: "destructive" });
+      return;
+    }
+
     const newEntry: ProductivityEntry = {
       id: editingId || Math.random().toString(36).substr(2, 9),
-      technicianId: currentUser.id,
+      technicianId: formData.technicianId || currentUser.id,
       ...formData
     };
 
@@ -54,6 +67,7 @@ export default function EntriesPage() {
     setEntries(getEntries());
     setEditingId(null);
     setFormData({
+      technicianId: isSupervisor ? "" : currentUser.id,
       date: new Date().toISOString().split('T')[0],
       gasStoveConversions: 0,
       waterHeaterConversions: 0,
@@ -72,6 +86,7 @@ export default function EntriesPage() {
   const handleEdit = (entry: ProductivityEntry) => {
     setEditingId(entry.id);
     setFormData({
+      technicianId: entry.technicianId,
       date: entry.date,
       gasStoveConversions: entry.gasStoveConversions,
       waterHeaterConversions: entry.waterHeaterConversions,
@@ -84,23 +99,44 @@ export default function EntriesPage() {
   };
 
   const handleDelete = (id: string) => {
-    deleteEntry(id);
-    setEntries(getEntries());
+    if (confirm("هل أنت متأكد من حذف هذا السجل؟")) {
+      deleteEntry(id);
+      setEntries(getEntries());
+      toast({ title: "تم الحذف", description: "تم حذف السجل بنجاح" });
+    }
   };
 
+  const getTechName = (id: string) => TECHNICIANS.find(t => t.id === id)?.name || "غير معروف";
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold font-headline">تسجيل الإنتاجية اليومية</h2>
+        <h2 className="text-2xl font-bold font-headline">تسجيل وإدارة الإنتاجية اليومية</h2>
       </div>
 
       <Card className="shadow-md border-primary/20">
         <CardHeader className="bg-primary/5">
-          <CardTitle className="text-lg">إضافة سجل جديد</CardTitle>
+          <CardTitle className="text-lg">{editingId ? "تعديل سجل" : "إضافة سجل جديد"}</CardTitle>
           <CardDescription>أدخل تفاصيل الأجهزة التي تم العمل عليها اليوم</CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {isSupervisor && (
+              <div className="space-y-2 col-span-1 md:col-span-2">
+                <Label htmlFor="technician">اختر الفني</Label>
+                <Select value={formData.technicianId} onValueChange={(v) => setFormData({...formData, technicianId: v})}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="اختر الفني المسجل له" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TECHNICIANS.map(tech => (
+                      <SelectItem key={tech.id} value={tech.id}>{tech.name} ({tech.type})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
             <div className="space-y-2 col-span-1 md:col-span-2">
               <Label htmlFor="date">التاريخ</Label>
               <Input 
@@ -148,7 +184,10 @@ export default function EntriesPage() {
                 {editingId ? "تحديث البيانات" : "حفظ الإنتاجية"}
               </Button>
               {editingId && (
-                <Button variant="outline" type="button" onClick={() => setEditingId(null)}>
+                <Button variant="outline" type="button" onClick={() => {
+                  setEditingId(null);
+                  setFormData({...formData, technicianId: isSupervisor ? "" : currentUser.id});
+                }}>
                   إلغاء
                 </Button>
               )}
@@ -158,13 +197,14 @@ export default function EntriesPage() {
       </Card>
 
       <div className="space-y-4">
-        <h3 className="text-xl font-bold font-headline">سجلاتك السابقة</h3>
+        <h3 className="text-xl font-bold font-headline">{isSupervisor ? "كافة السجلات المسجلة" : "سجلاتك السابقة"}</h3>
         <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>التاريخ</TableHead>
-                <TableHead>منزلي (تحويل/استبدال)</TableHead>
+                {isSupervisor && <TableHead>الفني</TableHead>}
+                <TableHead>منزلي</TableHead>
                 <TableHead>تجاري</TableHead>
                 <TableHead>مداخن</TableHead>
                 <TableHead className="text-left">الإجراءات</TableHead>
@@ -173,7 +213,7 @@ export default function EntriesPage() {
             <TableBody>
               {userEntries.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isSupervisor ? 6 : 5} className="text-center py-8 text-muted-foreground">
                     لا توجد سجلات بعد
                   </TableCell>
                 </TableRow>
@@ -181,6 +221,7 @@ export default function EntriesPage() {
                 userEntries.map((entry) => (
                   <TableRow key={entry.id}>
                     <TableCell className="font-medium">{entry.date}</TableCell>
+                    {isSupervisor && <TableCell className="font-bold text-primary">{getTechName(entry.technicianId)}</TableCell>}
                     <TableCell>{entry.gasStoveConversions + entry.waterHeaterConversions + entry.householdApplianceReplacements}</TableCell>
                     <TableCell>{entry.commercialApplianceReplacements + entry.commercialApplianceConversions}</TableCell>
                     <TableCell>{entry.chimneyInstallations}</TableCell>
