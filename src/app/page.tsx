@@ -38,9 +38,9 @@ export default function LoginPage() {
       .trim()
       .replace(/[\u064B-\u0652]/g, "") // إزالة التشكيل
       .replace(/[أإآ]/g, "ا") // توحيد الألف
-      .replace(/ة/g, "ه") // توحيد التاء المربوطة والهاء (شائع في الأخطاء الإملائية)
+      .replace(/ة/g, "ه") // توحيد التاء المربوطة والهاء
       .replace(/ى/g, "ي") // توحيد الياء والألف اللينة
-      .replace(/\s+/g, " "); // توحيد المسافات المتعددة لمسافة واحدة
+      .replace(/\s+/g, " "); // توحيد المسافات المتعددة
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -52,16 +52,13 @@ export default function LoginPage() {
     const normalizedInputName = normalizeArabic(username);
     const inputPassword = password.trim();
 
-    // البحث عن المستخدم بمطابقة الاسم المنظف وكلمة المرور
     const user = allUsers.find((u) => {
       const normalizedStoreName = normalizeArabic(u.name);
       return normalizedStoreName === normalizedInputName && u.password === inputPassword;
     });
 
     if (user) {
-      // حفظ بيانات المستخدم في LocalStorage
       localStorage.setItem("current_user", JSON.stringify(user));
-      // توجيه المستخدم للوحة التحكم
       window.location.href = "/dashboard";
     } else {
       setError("بيانات الدخول غير صحيحة. يرجى التأكد من كتابة الاسم وكلمة المرور بشكل صحيح.");
@@ -96,7 +93,7 @@ export default function LoginPage() {
                 <Input
                   id="username"
                   className="pr-10 h-12 border-2 focus-visible:ring-primary bg-slate-50 font-bold"
-                  placeholder="مثال: معتز اسماعيل"
+                  placeholder=""
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
