@@ -9,7 +9,8 @@ import { calculateNormalizedProductivity, filterEntriesByMonth } from "@/lib/con
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileDown, LayoutDashboard, TrendingUp, Users, Flame, Info } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { FileDown, TrendingUp, Users, Flame, Info } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
