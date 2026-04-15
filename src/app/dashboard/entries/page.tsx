@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Edit2, Check } from "lucide-react";
+import { Plus, Trash2, Edit2, Check, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
@@ -31,73 +31,78 @@ export default function EntriesPage() {
     chimneyInstallations: 0
   });
 
+  // 1. تحميل البيانات عند البداية
   useEffect(() => {
     const stored = localStorage.getItem("current_user");
     if (stored) {
       const user = JSON.parse(stored);
       setCurrentUser(user);
+      // إذا كان فني، نثبت معرفه تلقائياً
       if (user.role === 'technician') {
         setFormData(prev => ({ ...prev, technicianId: user.id }));
       }
     }
-    loadAllData();
+    refreshData();
   }, []);
 
-  const loadAllData = async () => {
-    try {
-      setIsLoading(true);
-      const data = await getEntries();
-      setEntries(data || []);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsLoading(false);
-    }
+  const refreshData = async () => {
+    setIsLoading(true);
+    const data = await getEntries();
+    setEntries(data || []);
+    setIsLoading(false);
   };
 
   if (!currentUser) return null;
-
   const isSupervisor = currentUser.role === 'supervisor';
 
+  // 2. معالجة الحفظ (تعديل أو إضافة)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (isSupervisor && !formData.technicianId) {
-      toast({ title: "خطأ", description: "يرجى اختيار الفني", variant: "destructive" });
+      toast({ title: "تنبيه", description: "يجب اختيار الفني أولاً", variant: "destructive" });
       return;
     }
 
-    const entryData: ProductivityEntry = {
-      // لو فيه editingId نستخدمه عشان يعدل نفس الخانة، لو مفيش نعمل ID جديد
+    // أهم جزء: لو فيه editingId نستخدمه عشان يعدل نفس الخانة
+    const finalEntry: ProductivityEntry = {
       id: editingId || Math.random().toString(36).substr(2, 9),
       technicianId: formData.technicianId || currentUser.id,
       ...formData
     };
 
     try {
-      await saveEntry(entryData);
-      await loadAllData(); // تحديث القائمة فوراً
+      await saveEntry(finalEntry);
+      await refreshData(); // تحديث الجدول فوراً من السيرفر
       
-      setEditingId(null);
-      setFormData({
-        technicianId: isSupervisor ? "" : currentUser.id,
-        date: new Date().toISOString().split('T')[0],
-        gasStoveConversions: 0,
-        waterHeaterConversions: 0,
-        householdApplianceReplacements: 0,
-        commercialApplianceReplacements: 0,
-        commercialApplianceConversions: 0,
-        chimneyInstallations: 0
+      setEditingId(null); // إنهاء وضع التعديل
+      resetForm();
+      
+      toast({ 
+        title: editingId ? "تم التحديث" : "تم الحفظ", 
+        description: editingId ? "تم تعديل السجل بنجاح" : "تم إضافة إنتاجية جديدة" 
       });
-
-      toast({ title: "تم بنجاح", description: editingId ? "تم تحديث السجل" : "تم حفظ السجل الجديد" });
     } catch (error) {
-      toast({ title: "خطأ", description: "فشل الحفظ", variant: "destructive" });
+      toast({ title: "خطأ", description: "حدثت مشكلة في الاتصال بالسحاب", variant: "destructive" });
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      technicianId: isSupervisor ? "" : currentUser.id,
+      date: new Date().toISOString().split('T')[0],
+      gasStoveConversions: 0,
+      waterHeaterConversions: 0,
+      householdApplianceReplacements: 0,
+      commercialApplianceReplacements: 0,
+      commercialApplianceConversions: 0,
+      chimneyInstallations: 0
+    });
+  };
+
+  // 3. معالجة التعديل (تحميل البيانات في الفورم)
   const handleEdit = (entry: ProductivityEntry) => {
-    setEditingId(entry.id);
+    setEditingId(entry.id); // حفظ الـ ID عشان نعدله
     setFormData({
       technicianId: entry.technicianId,
       date: entry.date,
@@ -111,121 +116,134 @@ export default function EntriesPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // 4. معالجة الحذف (للمشرف)
   const handleDelete = async (id: string) => {
     if (!confirm("هل أنت متأكد من حذف هذا السجل نهائياً؟")) return;
     
     try {
-      await deleteEntry(id); // الحذف من فايربيز
-      await loadAllData(); // تحديث الجدول
-      toast({ title: "تم الحذف", description: "تم مسح السجل من السحاب" });
+      await deleteEntry(id);
+      await refreshData();
+      toast({ title: "تم الحذف", description: "تم إزالة السجل من قاعدة البيانات" });
     } catch (error) {
-      toast({ title: "خطأ", description: "لم يتم الحذف، حاول ثانية", variant: "destructive" });
+      toast({ title: "خطأ", description: "فشل الحذف، حاول مرة أخرى", variant: "destructive" });
     }
   };
 
   const getTechName = (id: string) => TECHNICIANS.find(t => t.id === id)?.name || "غير معروف";
 
   return (
-    <div className="max-w-6xl mx-auto space-y-10 animate-in slide-in-from-bottom-4" dir="rtl">
-      <div className="text-right space-y-2">
-        <h2 className="text-3xl font-black text-primary">إدارة الإنتاجية</h2>
-        <p className="text-muted-foreground font-bold italic">تعديل ومتابعة سجلات الفريق</p>
+    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-700" dir="rtl">
+      {/* Header */}
+      <div className="flex justify-between items-end border-b pb-4">
+        <div className="space-y-1">
+          <h2 className="text-3xl font-black text-[#0f172a]">إدارة الإنتاجية</h2>
+          <p className="text-slate-500 font-bold">صلاحيات المشرف: تعديل وحذف السجلات</p>
+        </div>
+        {editingId && (
+          <Badge className="bg-amber-500 text-white animate-pulse px-4 py-1">وضع التعديل نشط</Badge>
+        )}
       </div>
 
-      <Card className="shadow-2xl border-t-4 border-t-primary">
-        <CardHeader className="text-right">
-          <CardTitle className="text-xl font-black">{editingId ? "تعديل البيانات الحالية" : "إضافة سجل جديد"}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6 text-right">
-            {isSupervisor && (
-              <div className="col-span-1 md:col-span-2 space-y-2">
-                <Label className="font-black text-lg">الفني المسئول</Label>
-                <Select value={formData.technicianId} onValueChange={(v) => setFormData({...formData, technicianId: v})}>
-                  <SelectTrigger className="h-12 border-2 font-bold text-lg">
-                    <SelectValue placeholder="اختر الفني من القائمة" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TECHNICIANS.map(tech => (
-                      <SelectItem key={tech.id} value={tech.id} className="font-bold">{tech.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label className="font-black text-lg">التاريخ</Label>
-              <Input type="date" className="h-12 border-2 font-bold text-lg" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} required />
-            </div>
-
-            {[
-              { id: "gasStoveConversions", label: "تحويل بوتجاز" },
-              { id: "waterHeaterConversions", label: "تحويل سخان" },
-              { id: "householdApplianceReplacements", label: "استبدال منزلي" },
-              { id: "commercialApplianceReplacements", label: "استبدال تجاري" },
-              { id: "commercialApplianceConversions", label: "تحويل تجاري" },
-              { id: "chimneyInstallations", label: "تركيب مداخن" }
-            ].map((item) => (
-              <div key={item.id} className="space-y-2">
-                <Label className="font-bold text-md">{item.label}</Label>
-                <Input 
-                  type="number" 
-                  min="0"
-                  className="h-12 border-2 text-xl font-black" 
-                  value={(formData as any)[item.id]} 
-                  onChange={(e) => setFormData({...formData, [item.id]: parseInt(e.target.value) || 0})} 
-                />
-              </div>
-            ))}
-
-            <div className="col-span-1 md:col-span-3 flex gap-4 pt-6">
-              <Button type="submit" className="flex-1 h-14 text-xl font-black shadow-lg">
-                {editingId ? <Check className="ml-2" /> : <Plus className="ml-2" />}
-                {editingId ? "تحديث السجل" : "حفظ الإنتاجية"}
-              </Button>
-              {editingId && (
-                <Button variant="outline" className="h-14 px-8 font-bold border-2" type="button" onClick={() => setEditingId(null)}>إلغاء</Button>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Form Section */}
+        <Card className="lg:col-span-4 border-2 shadow-xl h-fit sticky top-4">
+          <CardHeader className="bg-slate-50 border-b">
+            <CardTitle className="text-lg font-black">{editingId ? "تعديل السجل المختارة" : "إضافة سجل جديد"}</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {isSupervisor && (
+                <div className="space-y-2">
+                  <Label className="font-bold">اسم الفني</Label>
+                  <Select value={formData.technicianId} onValueChange={(v) => setFormData({...formData, technicianId: v})}>
+                    <SelectTrigger className="h-12 border-2">
+                      <SelectValue placeholder="اختر الفني" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TECHNICIANS.map(t => <SelectItem key={t.id} value={t.id} className="font-bold">{t.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
-            </div>
-          </form>
-        </CardContent>
-      </Card>
 
-      <div className="bg-card rounded-xl border shadow-xl overflow-hidden">
-        <Table>
-          <TableHeader className="bg-secondary/30">
-            <TableRow>
-              <TableHead className="text-right font-black text-lg">التاريخ</TableHead>
-              <TableHead className="text-right font-black text-lg">الفني</TableHead>
-              <TableHead className="text-center font-black text-lg">الإجمالي</TableHead>
-              <TableHead className="text-center font-black text-lg">الإجراءات</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {entries.length === 0 ? (
-              <TableRow><TableCell colSpan={4} className="text-center py-10 font-bold text-muted-foreground italic">{isLoading ? "جاري مزامنة السحاب..." : "لا توجد بيانات مسجلة"}</TableCell></TableRow>
-            ) : (
-              entries.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((entry) => (
-                <TableRow key={entry.id}>
-                  <TableCell className="font-bold text-lg">{entry.date}</TableCell>
-                  <TableCell className="font-black text-primary text-lg">{getTechName(entry.technicianId)}</TableCell>
-                  <TableCell className="text-center font-black text-xl">
-                    <Badge className="text-lg bg-primary/10 text-primary border-primary/20">
-                      {entry.gasStoveConversions + entry.waterHeaterConversions + entry.householdApplianceReplacements + entry.commercialApplianceReplacements + entry.commercialApplianceConversions + entry.chimneyInstallations}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-center gap-4">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(entry)} className="text-blue-600 hover:bg-blue-50"><Edit2 className="h-6 w-6" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(entry.id)} className="text-destructive hover:bg-red-50"><Trash2 className="h-6 w-6" /></Button>
-                    </div>
-                  </TableCell>
+              <div className="space-y-2">
+                <Label className="font-bold">التاريخ</Label>
+                <Input type="date" className="h-12 border-2 font-bold" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} required />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-black">بوتجاز</Label>
+                  <Input type="number" min="0" className="border-2 font-bold" value={formData.gasStoveConversions} onChange={(e) => setFormData({...formData, gasStoveConversions: parseInt(e.target.value) || 0})} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-black">سخان</Label>
+                  <Input type="number" min="0" className="border-2 font-bold" value={formData.waterHeaterConversions} onChange={(e) => setFormData({...formData, waterHeaterConversions: parseInt(e.target.value) || 0})} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-black">مداخن</Label>
+                <Input type="number" min="0" className="h-12 border-2 font-black text-blue-600" value={formData.chimneyInstallations} onChange={(e) => setFormData({...formData, chimneyInstallations: parseInt(e.target.value) || 0})} />
+              </div>
+
+              <Button type="submit" className={`w-full h-14 text-lg font-black shadow-lg ${editingId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                {editingId ? <><Check className="ml-2" /> تحديث الآن</> : <><Plus className="ml-2" /> حفظ السجل</>}
+              </Button>
+              
+              {editingId && (
+                <Button variant="ghost" className="w-full font-bold text-slate-400" onClick={() => {setEditingId(null); resetForm();}}>إلغاء التعديل</Button>
+              )}
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Table Section */}
+        <div className="lg:col-span-8 space-y-4">
+          <div className="bg-white rounded-2xl border-2 shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader className="bg-slate-900">
+                <TableRow>
+                  <TableHead className="text-white text-right font-bold">التاريخ</TableHead>
+                  <TableHead className="text-white text-right font-bold">الفني</TableHead>
+                  <TableHead className="text-white text-center font-bold">الأجهزة</TableHead>
+                  <TableHead className="text-white text-center font-bold">الإجراءات</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow><TableCell colSpan={4} className="text-center py-10 animate-pulse font-bold">جاري المزامنة مع السحاب...</TableCell></TableRow>
+                ) : entries.length === 0 ? (
+                  <TableRow><TableCell colSpan={4} className="text-center py-10 text-slate-400">لا توجد بيانات</TableCell></TableRow>
+                ) : (
+                  entries.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((entry) => (
+                    <TableRow key={entry.id} className={editingId === entry.id ? "bg-amber-50" : ""}>
+                      <TableCell className="font-bold">{entry.date}</TableCell>
+                      <TableCell className="font-black text-[#0f172a]">{getTechName(entry.technicianId)}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary" className="font-black text-sm">
+                          {entry.gasStoveConversions + entry.waterHeaterConversions + entry.chimneyInstallations} جهاز
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-2">
+                          <Button variant="outline" size="icon" onClick={() => handleEdit(entry)} className="text-blue-600 border-blue-100 hover:bg-blue-50 h-10 w-10">
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          {isSupervisor && (
+                            <Button variant="outline" size="icon" onClick={() => handleDelete(entry.id)} className="text-red-600 border-red-100 hover:bg-red-50 h-10 w-10">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </div>
     </div>
   );
